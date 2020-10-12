@@ -1,0 +1,125 @@
+﻿@page "/moderator"
+@inject NavigationManager NavigationManager
+@implements IDisposable
+<h3>InitialChat</h3>
+
+<div class="form-group">
+    <label>Usuario:</label>
+    <input @bind="NickName" size="50" />
+    <button @onclick="SingInModerator">
+        Sing
+    </button>
+    <div>
+        @SingInMessage
+    </div>
+</div>
+<div class="form-group">
+    <label>Pregunta:</label>
+    <input @bind="MessageInput" size="50" />
+</div>
+
+<button @onclick="Send" disabled="@(!IsConnected)">
+    Enviar
+</button>
+<div>
+    Usuarios :
+    @foreach (var User in Users)
+    {
+        @($"*{User}");
+    }
+</div>
+
+<hr />
+<ul>
+    @foreach (var message in Messages)
+    {
+        <li>
+            @message
+        </li>
+    }
+</ul>
+<ul>
+    @foreach (var Q in Questions)
+    {
+        <li>
+            @Q.Question
+        </li>
+    }
+</ul>
+
+@code {
+
+    string NickName;
+    string MessageInput;
+    private List<string> Messages = new List<string>();
+    private List<QuestionUsers> Questions = new List<QuestionUsers>();
+    List<String> Users = new List<string>();
+    string SingInMessage;
+
+
+    HubConnection HubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        HubConnection = new HubConnectionBuilder()
+        .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
+        .Build();
+
+        HubConnection.On<string, string>("ReceiveMessage", (user, message) =>
+        {
+            Messages.Add($"{user}: {message}");
+            StateHasChanged();
+        });
+        HubConnection.On(nameof(NotifyQuestions), NotifyQuestions);
+        HubConnection.On<string>(nameof(UserConnected), UserConnected);
+        HubConnection.On<string>(nameof(UserDisconnected), UserDisconnected);
+        await HubConnection.StartAsync();
+    }
+    Task Send() => HubConnection.SendAsync("SendMessage", MessageInput);
+
+
+    async Task NotifyQuestions()
+    {
+        Questions =
+        await HubConnection.InvokeAsync<List<QuestionUsers>>("GetQuestions");
+        this.StateHasChanged();
+    }
+
+
+    async Task SingInModerator()
+    {
+        var Result = await HubConnection.InvokeAsync<bool>(nameof(SingInModerator), NickName);
+        if (Result)
+        {
+            SingInMessage = "!Usuario registrado";
+            Users = await HubConnection.InvokeAsync<List<string>>("GetUserList");
+        }
+        else
+        {
+            SingInMessage = "El NickName ya esta siendo utilizado.";
+        }
+    }
+
+    public bool IsConnected =>
+        HubConnection.State == HubConnectionState.Connected;
+
+
+    void UserConnected(string user)
+    {
+        Users.Add(user);
+        Messages.Add($"{user} se ha conectado.");
+        StateHasChanged();
+    }
+
+    void UserDisconnected(string user)
+    {
+        Users.Remove(user);
+        Messages.Add($"{user} se ha desconectado.");
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _ = HubConnection.DisposeAsync();
+    }
+}
