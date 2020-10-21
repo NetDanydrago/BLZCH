@@ -28,25 +28,43 @@ else
                     @Q.ChatUser.NickName
                 </div>
                 @Q.Question
-                <button @onclick="() => IsShow = true">
+                <button @onclick=" async () =>
+                                   { await ChangeStateAnswer(StateAnswer.Answering, Q);
+                                       Question = Q;
+                                       IsShow = true;
+                                   }"
+                        disabled="@(Q.IsAnswered == StateAnswer.Answering)">
                     Responder
                 </button>
             </li>
         }
     </ul>
+
     @if (IsShow)
     {
         <div>
-
+            <button @onclick=" async () => {
+                    await ChangeStateAnswer(StateAnswer.NotAnswered, Question);
+                    IsShow = false;
+                    }">
+                x
+            </button>
+            <div class="form-group">
+                <label>Respuesta:</label>
+                <input @bind="MessageInput" size="50" />
+            </div>
+            <button @onclick="() => SendAnswer(Question)" disabled="@(!IsConnected)">
+                Enviar
+            </button>
         </div>
     }
 }
 @code {
     bool IsSingIn = false;
+    bool IsShow = false;
     string NickName;
     string MessageInput;
-    bool IsShow = false;
-    private List<string> Messages = new List<string>();
+    QuestionUsers Question;
     private List<QuestionUsers> Questions = new List<QuestionUsers>();
     List<String> Users = new List<string>();
     string SingInMessage;
@@ -59,18 +77,21 @@ else
         HubConnection = new HubConnectionBuilder()
         .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
         .Build();
-
-        HubConnection.On<string, string>("ReceiveMessage", (user, message) =>
-        {
-            Messages.Add($"{user}: {message}");
-            StateHasChanged();
-        });
         HubConnection.On(nameof(NotifyQuestions), NotifyQuestions);
-        HubConnection.On<string>(nameof(UserConnected), UserConnected);
-        HubConnection.On<string>(nameof(UserDisconnected), UserDisconnected);
         await HubConnection.StartAsync();
     }
-    Task Send() => HubConnection.SendAsync("SendMessage", MessageInput);
+
+    async Task SendAnswer(QuestionUsers questionUsers)
+    {
+        await HubConnection.SendAsync("SendMessageModerator", MessageInput, questionUsers);
+        IsShow = false;
+    }
+
+
+    async Task ChangeStateAnswer(StateAnswer state, QuestionUsers questionUser)
+    {
+        await HubConnection.SendAsync(nameof(ChangeStateAnswer), questionUser,state);
+    }
 
 
     async Task NotifyQuestions()
@@ -98,21 +119,6 @@ else
 
     public bool IsConnected =>
         HubConnection.State == HubConnectionState.Connected;
-
-
-    void UserConnected(string user)
-    {
-        Users.Add(user);
-        Messages.Add($"{user} se ha conectado.");
-        StateHasChanged();
-    }
-
-    void UserDisconnected(string user)
-    {
-        Users.Remove(user);
-        Messages.Add($"{user} se ha desconectado.");
-        StateHasChanged();
-    }
 
     public void Dispose()
     {

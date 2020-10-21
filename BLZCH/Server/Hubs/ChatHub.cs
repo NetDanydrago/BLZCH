@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BLZCH.Shared;
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace BLZCH.Server.Hubs
 {
@@ -13,7 +14,9 @@ namespace BLZCH.Server.Hubs
 
         const string IdentifiedUsers = "Identified Users";
         const string ModeratorUsers = "Moderator Users";
-        static List<QuestionUsers> QuestionUsers = new List<QuestionUsers>();
+        static int Aux = 0;
+        static ConcurrentDictionary<int, QuestionUsers> QuestionUsers =
+            new ConcurrentDictionary<int, QuestionUsers>();
         static ConcurrentDictionary<string, ChatUser> Users =
             new ConcurrentDictionary<string, ChatUser>();
         static ConcurrentDictionary<string, ChatUser> Moderators =
@@ -24,37 +27,54 @@ namespace BLZCH.Server.Hubs
             ChatUser User = GetCurrentChatUser();
             if(User != null)
             {
-                QuestionUsers.Add(new Shared.QuestionUsers()
+                Aux++;
+                int Id = Aux;
+                QuestionUsers.TryAdd(Id,new Shared.QuestionUsers()
                 {
+                    Id = Id,
                     ChatUser = User,
                     Question = message,
-                    IsAnswered = false
+                    IsAnswered = StateAnswer.NotAnswered
                 });
                 await Clients.Group(ModeratorUsers)
                        .NotifyQuestions();
             }
         }
 
-        public async Task SendMessageModerator(string message)
+        public async Task SendMessageModerator(string message,QuestionUsers questionUser)
         {
-            ChatUser User = GetCurrentChatUser();
+            ChatUser User = GetCurrentModeratorUser();
             if (User != null)
             {
-                await Clients.Group(IdentifiedUsers)
-                    .ReceiveMessage(User.NickName, message);
+                QuestionUsers.TryRemove(questionUser.Id, out questionUser);
+                var Builder = new StringBuilder();
+                Builder.Append($"Pregunta : {questionUser.Question}");
+                Builder.Append($"Respuesta: {message}");
+                await Clients.Client(questionUser.ChatUser.ConnectionId)
+                    .ReceiveMessage(User.NickName, Builder.ToString());
+                await Clients.Group(ModeratorUsers).NotifyQuestions();
             }
+        }
+
+        public async Task ChangeStateAnswer(QuestionUsers questionUsers, StateAnswer state)
+        {
+            QuestionUsers.TryGetValue(questionUsers.Id, out Shared.QuestionUsers Question);
+            Question.IsAnswered = state;
+            await Clients.Group(ModeratorUsers).NotifyQuestions();
         }
 
         public async Task<List<QuestionUsers>> GetQuestions()
         {
             List<QuestionUsers> Questions = new List<QuestionUsers>();
-            if (GetCurrentModeratorUser() is ChatUser ChatUser)
+            if (GetCurrentModeratorUser() is ChatUser)
             {
-                Questions = QuestionUsers.Where
-                    (q => q.IsAnswered == false).ToList(); 
+                 Questions = QuestionUsers.Values.ToList(); 
+   
             }
             return await Task.FromResult(Questions);
         }
+
+
 
         public async Task<string[]> GetUserList()
         {
@@ -85,6 +105,9 @@ namespace BLZCH.Server.Hubs
             return Result;
         }
 
+        
+
+
         public async Task<bool> SingInModerator(string nickName)
         {
             bool Result = false;
@@ -109,6 +132,12 @@ namespace BLZCH.Server.Hubs
                     , IdentifiedUsers);
                 await Clients.Group(IdentifiedUsers)
                     .UserDisconnected(ChatUser.NickName);
+            }
+            if(GetCurrentModeratorUser() is ChatUser Moderator)
+            {
+                Moderators.TryRemove(Moderator.NickName, out var value);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId
+                    ,IdentifiedUsers);
             }
         }
 
