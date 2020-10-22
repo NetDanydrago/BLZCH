@@ -1,7 +1,7 @@
 ﻿@page "/moderator"
 @inject NavigationManager NavigationManager
 @implements IDisposable
-<h3>InitialChat</h3>
+<h3>Chat Moderador</h3>
 
 
 @if (!IsSingIn)
@@ -40,24 +40,21 @@ else
         }
     </ul>
 
-    @if (IsShow)
-    {
-        <div>
-            <button @onclick=" async () => {
+    <ModalDialog Show="IsShow" Close="async () => {
                     await ChangeStateAnswer(StateAnswer.NotAnswered, Question);
-                    IsShow = false;
-                    }">
-                x
-            </button>
+                    IsShow = false;}" >
+        <Body>
             <div class="form-group">
                 <label>Respuesta:</label>
                 <input @bind="MessageInput" size="50" />
             </div>
+        </Body>
+        <Footer>
             <button @onclick="() => SendAnswer(Question)" disabled="@(!IsConnected)">
                 Enviar
             </button>
-        </div>
-    }
+        </Footer>
+    </ModalDialog>
 }
 @code {
     bool IsSingIn = false;

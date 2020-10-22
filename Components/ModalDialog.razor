@@ -1,0 +1,37 @@
+﻿
+@if (Show)
+{
+    <div class="dialog-container">
+        <div class="dialog">
+            <div class="dialog-header">
+                <button class="dialog-close"
+                        @onclick="Close">
+                    X
+                </button>
+                @Header
+            </div>
+            <div class="dialog-body">
+                @Body
+            </div>
+            <div class="dialog-footer">
+                @Footer
+            </div>
+        </div>
+    </div>
+}
+
+
+@code{
+    [Parameter]
+    public RenderFragment Header { get; set; }
+    [Parameter]
+    public RenderFragment Body { get; set; }
+    [Parameter]
+    public RenderFragment Footer { get; set; }
+    [Parameter]
+    public bool Show { get; set; }
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+
+}

@@ -1,0 +1,77 @@
+﻿.dialog-container {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    animation: dialog-container-entry 0.2s;
+}
+
+@keyframes dialog-container-entry {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.dialog {
+    background-color: white;
+    box-shadow: 0 0 12px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    z-index: 2000;
+    align-self: center;
+    margin: auto;
+    width: 700px;
+    max-height: calc(100% - 3rem);
+    animation: dialog-entry 0.4s;
+    animation-timing-function: cubic-bezier(0.075, 0.820, 0.165, 1.000);
+    border-radius: 6px;
+}
+
+@keyframes dialog-entry {
+    0% {
+        transform: scale(0.3);
+    }
+
+    100% {
+        transform: scale(1.0);
+    }
+}
+
+.dialog-header {
+    background: #ff0000;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    color: white;
+    padding: 12px;
+    position: relative;
+}
+
+    .dialog-header .dialog-close {
+        background: rgba(255,255,255,0.25);
+        color: white;
+        font-size: 0.6rem;
+        position: absolute;
+        top: 1px;
+        right: 12px;
+        border: 0;
+        border-radius: 50%;
+        height: 20px;
+        width: 20px;
+    }
+
+.dialog-body {
+    padding: 12px;
+}
+
+.dialog-footer {
+    border-top: 1px solid #ff0000;
+    padding: 12px;
+}

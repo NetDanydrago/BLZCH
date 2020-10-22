@@ -1,12 +1,12 @@
 ﻿@page "/chat"
 @inject NavigationManager NavigationManager
 @implements IDisposable
-<h3>InitialChat</h3>
+<h3>Chat Usuarios</h3>
 
 @if (!IsSingIn)
 {
     <div class="form-group">
-        <label>Usuario:</label>
+        <label>Ingresa tu nombre de usuario:</label>
         <input @bind="NickName" size="50" />
         <button @onclick="SingIn">
             Ingresar
@@ -19,32 +19,35 @@
 else
 {
 <div class="form-group popup">
-    <span class="popuptext @ShowPopup" id="myPopup">Tu pregunta ha sido enviada,
+    <label>Pregunta:</label>
+    <span class="popuptext @ShowPopup" id="myPopup">
+        Tu pregunta ha sido enviada,
         <br />
         sera respondidad en unos momentos!
     </span>
-    <label>Pregunta:</label>
     <input @bind="MessageInput" size="50" />
-</div>
     <button @onclick="Send" disabled="@(!IsConnected)">
         Enviar
     </button>
-    <div>
-        Usuarios :
-        @foreach (var User in Users)
-        {
-            @($"*{User}");
-        }
-    </div>
+</div>
+
     <hr />
-    <ul>
-        @foreach (var message in Messages)
-        {
-            <li>
-                @message
-            </li>
-        }
-    </ul>
+    <div>
+        <div>
+            Area de Preguntas respondidas por los moderadores.
+        </div>
+        <hr />
+        <ul>
+            @foreach (var message in Messages)
+            {
+                <li>
+                    @message.UserModerator<br />
+                    Pregunta: @message.Question <br/>
+                    Respuesta: @message.Answer
+                </li>
+            }
+        </ul>
+    </div>
 }
 
 
@@ -55,8 +58,8 @@ else
     string ShowPopup;
     string NickName;
     string MessageInput;
-    private List<string> Messages = new List<string>();
-    List<String> Users = new List<string>();
+    private List<Questions> Messages = new List<Questions>();
+    List<string> Users = new List<string>();
     string SingInMessage;
 
 
@@ -68,9 +71,9 @@ else
         .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
         .Build();
 
-        HubConnection.On<string, string>("ReceiveMessage", (user, message) =>
+        HubConnection.On<Questions>("ReceiveMessage", (message) =>
         {
-            Messages.Add($"{user}: {message}");
+            Messages.Add(message);
             StateHasChanged();
         });
         HubConnection.On<string>(nameof(UserConnected), UserConnected);
@@ -82,6 +85,7 @@ else
     async Task Send()
     {
         await HubConnection.SendAsync("SendQuestion", MessageInput);
+        MessageInput = string.Empty;
         ShowPopup = "show";
         StateHasChanged();
         await Task.Delay(3000);
@@ -111,14 +115,12 @@ else
     void UserConnected(string user)
     {
         Users.Add(user);
-        Messages.Add($"{user} se ha conectado.");
         StateHasChanged();
     }
 
     void UserDisconnected(string user)
     {
         Users.Remove(user);
-        Messages.Add($"{user} se ha desconectado.");
         StateHasChanged();
     }
 

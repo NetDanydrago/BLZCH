@@ -47,11 +47,12 @@ namespace BLZCH.Server.Hubs
             if (User != null)
             {
                 QuestionUsers.TryRemove(questionUser.Id, out questionUser);
-                var Builder = new StringBuilder();
-                Builder.Append($"Pregunta : {questionUser.Question}");
-                Builder.Append($"Respuesta: {message}");
                 await Clients.Client(questionUser.ChatUser.ConnectionId)
-                    .ReceiveMessage(User.NickName, Builder.ToString());
+                    .ReceiveMessage(new Questions() {
+                        Question = questionUser.Question,
+                        Answer = message,
+                        UserModerator = User.NickName
+                    });
                 await Clients.Group(ModeratorUsers).NotifyQuestions();
             }
         }
